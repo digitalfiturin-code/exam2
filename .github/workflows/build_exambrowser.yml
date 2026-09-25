@@ -111,6 +111,20 @@ jobs:
           sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
           sed -i 's/minSdk = .*/minSdk = 21/g' android/app/build.gradle || true
           sed -i 's|android:label=".*"|android:label="${{ inputs.app_name }}"|g' android/app/src/main/AndroidManifest.xml || true
+          cat << 'EOF' >> android/build.gradle
+
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group ?: "com.exambrowser.${project.name.replace('-', '_')}"
+                }
+            }
+        }
+    }
+}
+EOF
 
       - name: Get Flutter Packages
         run: flutter pub get
