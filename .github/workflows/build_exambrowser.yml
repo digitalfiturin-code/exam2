@@ -1,4 +1,5 @@
 name: Build CBT Exambrowser Multi-Platform
+run-name: 'Build: ${{ inputs.school_name }} - ${{ inputs.app_name }} (${{ inputs.build_code }})'
 
 on:
   workflow_dispatch:
@@ -57,7 +58,7 @@ jobs:
   # JOB 1: ANDROID APK BUILD (UBUNTU RUNNER)
   # ══════════════════════════════════════════════════════════════
   build-android-apk:
-    name: Build Android (.APK)
+    name: 'Build Android (.APK) - ${{ inputs.school_name }}'
     if: inputs.target_platform == 'APK' || inputs.target_platform == 'ALL'
     runs-on: ubuntu-latest
     steps:
@@ -190,7 +191,7 @@ jobs:
   # JOB 2: WINDOWS EXE BUILD (WINDOWS RUNNER)
   # ══════════════════════════════════════════════════════════════
   build-windows-exe:
-    name: Build Windows (.EXE)
+    name: 'Build Windows (.EXE) - ${{ inputs.school_name }}'
     if: inputs.target_platform == 'EXE' || inputs.target_platform == 'ALL'
     runs-on: windows-latest
     steps:
