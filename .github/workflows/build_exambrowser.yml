@@ -585,8 +585,8 @@ jobs:
         run: |
           TAG="v-${{ inputs.build_code }}"
           TITLE="${{ inputs.school_name }} - ${{ inputs.app_name }} (${{ inputs.build_code }})"
-          gh release create "$TAG" release_files/* \
-            --title "$TITLE" \
-            --notes "ExamBrowser CBT untuk ${{ inputs.school_name }} (${{ inputs.build_code }}). Siap di-install." \
-            --clobber
+          NOTES="ExamBrowser CBT untuk ${{ inputs.school_name }} (${{ inputs.build_code }}). Siap di-install."
+          echo "Publishing release $TAG to GitHub CDN..."
+          gh release create "$TAG" release_files/* --title "$TITLE" --notes "$NOTES" || gh release upload "$TAG" release_files/* --clobber
+
 
