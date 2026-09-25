@@ -31,6 +31,10 @@ on:
         description: 'Aktifkan Suara Alert (true/false)'
         required: false
         default: 'false'
+      alert_volume:
+        description: 'Tingkat Volume Suara Alert (0.10 - 1.00)'
+        required: false
+        default: '0.8'
       screen_brightness:
         description: 'Kecerahan Layar (0.10 - 1.00)'
         required: false
