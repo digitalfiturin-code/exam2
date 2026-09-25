@@ -586,7 +586,18 @@ jobs:
           TAG="v-${{ inputs.build_code }}"
           TITLE="${{ inputs.school_name }} - ${{ inputs.app_name }} (${{ inputs.build_code }})"
           NOTES="ExamBrowser CBT untuk ${{ inputs.school_name }} (${{ inputs.build_code }}). Siap di-install."
-          echo "Publishing release $TAG to GitHub CDN..."
-          gh release create "$TAG" release_files/* --title "$TITLE" --notes "$NOTES" || gh release upload "$TAG" release_files/* --clobber
+          echo "Target Release: $TAG"
+          echo "Files to publish:"
+          ls -lh release_files/
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists. Uploading assets..."
+            gh release upload "$TAG" release_files/* --clobber
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" release_files/* --title "$TITLE" --notes "$NOTES"
+          fi
+          echo "GitHub Release $TAG successfully published!"
+
 
 
