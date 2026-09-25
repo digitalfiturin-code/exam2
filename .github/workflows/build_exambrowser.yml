@@ -1,228 +1,52 @@
-name: Build CBT Exambrowser Multi-Platform
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
-on:
-  workflow_dispatch:
-    inputs:
-      build_code:
-        description: 'Kode Unik Build'
-        required: true
-        default: 'BLD-TEST-001'
-      app_name:
-        description: 'Nama Aplikasi'
-        required: true
-        default: 'EXAMPRO'
-      school_name:
-        description: 'Nama Sekolah'
-        required: true
-        default: 'SMPN 4 DEPOK'
-      cbt_url:
-        description: 'URL Server CBT Ujian'
-        required: true
-        default: 'https://cbt.sekolahsaya.sch.id'
-      exit_pin:
-        description: 'PIN Keluar Ujian'
-        required: true
-        default: '085086'
-      custom_user_agent:
-        description: 'Custom User-Agent'
-        required: false
-        default: 'MSAT-ExamBrowser-V1'
-      enable_alert_sound:
-        description: 'Aktifkan Suara Alert (true/false)'
-        required: false
-        default: 'false'
-      alert_volume:
-        description: 'Tingkat Volume Suara Alert (0.10 - 1.00)'
-        required: false
-        default: '0.8'
-      screen_brightness:
-        description: 'Kecerahan Layar (0.10 - 1.00)'
-        required: false
-        default: '0.4'
-      target_platform:
-        description: 'Target Platform Output (APK, EXE, ALL)'
-        required: true
-        default: 'APK'
-      logo_base64:
-        description: 'Base64 Encoded Logo PNG'
-        required: false
-        default: ''
-      custom_audio_base64:
-        description: 'Base64 Encoded Custom Alert Audio MP3'
-        required: false
-        default: ''
+    <application
+        android:label="EXAMPRO"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        
+        <!-- Tambahkan android:resizeableActivity="false" untuk mematikan Split Screen -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:resizeableActivity="false"> 
+            
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalThemes"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
 
-jobs:
-  # ══════════════════════════════════════════════════════════════
-  # JOB 1: ANDROID APK BUILD (UBUNTU RUNNER)
-  # ══════════════════════════════════════════════════════════════
-  build-android-apk:
-    name: Build Android (.APK)
-    if: inputs.target_platform == 'APK' || inputs.target_platform == 'ALL'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+        <!-- Device Admin Receiver untuk dukungan Kiosk Device Owner -->
+        <receiver
+            android:name=".AdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
+            </intent-filter>
+        </receiver>
 
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.x'
-          channel: 'stable'
-          cache: true
-
-      - name: Decode Custom Logo
-        if: inputs.logo_base64 != ''
-        run: |
-          mkdir -p assets
-          echo "${{ inputs.logo_base64 }}" | base64 --decode > assets/logo.png
-
-      - name: Decode Custom Audio Alert
-        if: inputs.custom_audio_base64 != ''
-        run: |
-          mkdir -p assets
-          echo "${{ inputs.custom_audio_base64 }}" | base64 --decode > assets/alert.mp3
-
-      - name: Inject Parameters to lib/main.dart
-        run: |
-          sed -i 's|final String schoolName = ".*";|final String schoolName = "${{ inputs.school_name }}";|g' lib/main.dart
-          sed -i 's|final String exitPassword = ".*";|final String exitPassword = "${{ inputs.exit_pin }}";|g' lib/main.dart
-          sed -i 's|final String customUserAgent = ".*";|final String customUserAgent = "${{ inputs.custom_user_agent }}";|g' lib/main.dart
-          sed -i 's|final bool enableAlertAudio = .*;|final bool enableAlertAudio = ${{ inputs.enable_alert_sound }};|g' lib/main.dart
-          sed -i 's|final double alertAudioVolume = .*;|final double alertAudioVolume = ${{ inputs.alert_volume }};|g' lib/main.dart
-          sed -i 's|final double autoScreenBrightness = .*;|final double autoScreenBrightness = ${{ inputs.screen_brightness }};|g' lib/main.dart
-          sed -i 's|String currentUrl = ".*";|String currentUrl = "${{ inputs.cbt_url }}";|g' lib/main.dart
-          sed -i 's|currentUrl = "https://sites.google.com/guru.smp.belajar.id/asesmenpasmer/home";|currentUrl = "${{ inputs.cbt_url }}";|g' lib/main.dart
-
-      - name: Initialize Android Platform
-        run: |
-          if [ ! -d "android" ]; then
-            flutter create . --org com.exambrowser.cbt --project-name exam_browser --platforms=android
-            if [ -f "AndroidManifest_Strict.xml" ]; then
-              cp AndroidManifest_Strict.xml android/app/src/main/AndroidManifest.xml
-            fi
-          fi
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
-          sed -i 's/minSdk = .*/minSdk = 21/g' android/app/build.gradle || true
-          sed -i 's|android:label=".*"|android:label="${{ inputs.app_name }}"|g' android/app/src/main/AndroidManifest.xml || true
-          cat << 'EOF' >> android/build.gradle
-
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (namespace == null) {
-                    namespace project.group ?: "com.exambrowser.${project.name.replace('-', '_')}"
-                }
-            }
-        }
-    }
-}
-EOF
-
-      - name: Get Flutter Packages
-        run: flutter pub get
-
-      - name: Generate Launcher Icons
-        run: dart run flutter_launcher_icons
-
-      - name: Build Android APK (Split per ABI)
-        run: flutter build apk --split-per-abi --release
-
-      - name: Prepare Artifacts
-        run: |
-          mkdir -p output_apk
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apk/${{ inputs.build_code }}_arm64.apk || true
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk output_apk/${{ inputs.build_code }}_armeabi.apk || true
-          cp build/app/outputs/flutter-apk/app-release.apk output_apk/${{ inputs.build_code }}_universal.apk || true
-
-      - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: EXAMPRO-APK-${{ inputs.build_code }}
-          path: output_apk/
-          retention-days: 30
-
-  # ══════════════════════════════════════════════════════════════
-  # JOB 2: WINDOWS EXE BUILD (WINDOWS RUNNER)
-  # ══════════════════════════════════════════════════════════════
-  build-windows-exe:
-    name: Build Windows (.EXE)
-    if: inputs.target_platform == 'EXE' || inputs.target_platform == 'ALL'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.x'
-          channel: 'stable'
-          cache: true
-
-      - name: Decode Custom Logo
-        if: inputs.logo_base64 != ''
-        shell: powershell
-        run: |
-          if (!(Test-Path "assets")) { New-Item -ItemType Directory -Path "assets" }
-          [System.Convert]::FromBase64String("${{ inputs.logo_base64 }}") | Set-Content -Path "assets/logo.png" -Encoding Byte
-
-      - name: Decode Custom Audio Alert (Windows)
-        if: inputs.custom_audio_base64 != ''
-        shell: powershell
-        run: |
-          if (!(Test-Path "assets")) { New-Item -ItemType Directory -Path "assets" }
-          [System.Convert]::FromBase64String("${{ inputs.custom_audio_base64 }}") | Set-Content -Path "assets/alert.mp3" -Encoding Byte
-
-      - name: Inject Parameters to lib/main.dart (Windows)
-        shell: powershell
-        run: |
-          $mainContent = Get-Content "lib/main.dart" -Raw
-          $mainContent = $mainContent -replace 'final String schoolName = ".*";', 'final String schoolName = "${{ inputs.school_name }}";'
-          $mainContent = $mainContent -replace 'final String exitPassword = ".*";', 'final String exitPassword = "${{ inputs.exit_pin }}";'
-          $mainContent = $mainContent -replace 'final String customUserAgent = ".*";', 'final String customUserAgent = "${{ inputs.custom_user_agent }}";'
-          $mainContent = $mainContent -replace 'final bool enableAlertAudio = .*;', 'final bool enableAlertAudio = ${{ inputs.enable_alert_sound }};'
-          $mainContent = $mainContent -replace 'final double alertAudioVolume = .*;', 'final double alertAudioVolume = ${{ inputs.alert_volume }};'
-          $mainContent = $mainContent -replace 'final double autoScreenBrightness = .*;', 'final double autoScreenBrightness = ${{ inputs.screen_brightness }};'
-          $mainContent = $mainContent -replace 'String currentUrl = ".*";', 'String currentUrl = "${{ inputs.cbt_url }}";'
-          $mainContent = $mainContent -replace 'currentUrl = "https://sites.google.com/guru.smp.belajar.id/asesmenpasmer/home";', 'currentUrl = "${{ inputs.cbt_url }}";'
-          Set-Content -Path "lib/main.dart" -Value $mainContent
-
-      - name: Enable Windows Desktop in Flutter
-        run: flutter config --enable-windows-desktop
-
-      - name: Initialize Windows Platform
-        shell: powershell
-        run: |
-          if (!(Test-Path "windows")) {
-            flutter create . --org com.exambrowser.cbt --project-name exam_browser --platforms=windows
-          }
-
-      - name: Get Flutter Packages
-        run: flutter pub get
-
-      - name: Generate Launcher Icons
-        run: dart run flutter_launcher_icons
-
-      - name: Build Windows Application
-        run: flutter build windows --release
-
-      - name: Compress Windows Output to ZIP
-        shell: powershell
-        run: |
-          mkdir output_windows
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "output_windows\${{ inputs.build_code }}_Windows_EXE.zip"
-
-      - name: Upload Windows EXE Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: EXAMPRO-Windows-${{ inputs.build_code }}
-          path: output_windows/
-          retention-days: 30
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+</manifest>
