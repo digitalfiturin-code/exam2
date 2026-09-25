@@ -1,6 +1,9 @@
 name: Build CBT Exambrowser Multi-Platform
 run-name: 'Build: ${{ inputs.school_name }} - ${{ inputs.app_name }} (${{ inputs.build_code }})'
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -419,15 +422,19 @@ jobs:
           echo "Patching Proguard references in pub-cache plugins..."
           find /home/runner/.pub-cache/hosted/pub.dev \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/proguard-android.txt/proguard-android-optimize.txt/g' {} +
 
-      - name: Build Android APK (Split per ABI)
-        run: flutter build apk --release --split-per-abi
-
-      - name: Prepare Artifacts
+      - name: Build Android APK (Universal & Split)
         run: |
+          echo "=== 1. Building Universal APK (All-in-One for all Android devices) ==="
+          flutter build apk --release
           mkdir -p output_apk
+          cp build/app/outputs/flutter-apk/app-release.apk output_apk/${{ inputs.build_code }}_Universal.apk
+
+          echo "=== 2. Building Split APK per ABI ==="
+          flutter build apk --release --split-per-abi
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apk/${{ inputs.build_code }}_arm64.apk || true
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk output_apk/${{ inputs.build_code }}_armeabi.apk || true
-          cp build/app/outputs/flutter-apk/app-release.apk output_apk/${{ inputs.build_code }}_universal.apk || true
+
+          ls -lh output_apk/
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
@@ -529,7 +536,7 @@ jobs:
         shell: powershell
         run: |
           mkdir output_windows
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "output_windows\${{ inputs.build_code }}_Windows_EXE.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "output_windows\${{ inputs.build_code }}_Windows.zip"
 
       - name: Upload Windows EXE Artifact
         uses: actions/upload-artifact@v4
@@ -537,3 +544,49 @@ jobs:
           name: EXAMPRO-Windows-${{ inputs.build_code }}
           path: output_windows/
           retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════
+  # JOB 3: PUBLISH TO GITHUB RELEASES (DIRECT DOWNLOAD CDN)
+  # ══════════════════════════════════════════════════════════════
+  publish-release:
+    name: 'Publish to GitHub Releases - ${{ inputs.school_name }}'
+    needs: [build-android-apk, build-windows-exe]
+    if: always() && !cancelled() && (needs.build-android-apk.result == 'success' || needs.build-windows-exe.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create Staging Directory
+        run: mkdir -p release_files
+
+      - name: Download Android Artifacts
+        if: needs.build-android-apk.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: EXAMPRO-APK-${{ inputs.build_code }}
+          path: release_files
+
+      - name: Download Windows Artifacts
+        if: needs.build-windows-exe.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: EXAMPRO-Windows-${{ inputs.build_code }}
+          path: release_files
+
+      - name: List Release Files
+        run: ls -lh release_files/
+
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v-${{ inputs.build_code }}"
+          TITLE="${{ inputs.school_name }} - ${{ inputs.app_name }} (${{ inputs.build_code }})"
+          gh release create "$TAG" release_files/* \
+            --title "$TITLE" \
+            --notes "ExamBrowser CBT untuk ${{ inputs.school_name }} (${{ inputs.build_code }}). Siap di-install." \
+            --clobber
+
