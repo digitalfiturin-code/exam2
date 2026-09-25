@@ -114,11 +114,11 @@ jobs:
           cat << 'EOF' >> android/build.gradle
 
 subprojects {
-    project.plugins.whenPluginAdded { plugin ->
-        if (plugin.class.name.contains("com.android.build.gradle")) {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
             project.android {
                 if (namespace == null) {
-                    namespace = "com.exambrowser.plugins.${project.name.replaceAll('[^a-zA-Z0-9_]', '_')}"
+                    namespace = project.group.toString()
                 }
             }
         }
@@ -128,6 +128,43 @@ EOF
 
       - name: Get Flutter Packages
         run: flutter pub get
+
+      - name: Fix Plugin Namespaces and Manifests (AGP 8.0+)
+        run: |
+          echo "=== Patching Flutter plugins in Pub Cache for AGP 8.0+ ==="
+          find $HOME/.pub-cache -name "build.gradle" 2>/dev/null | while read -r gradle_file; do
+            if grep -q "android[[:space:]]*{" "$gradle_file" && ! grep -q "namespace" "$gradle_file"; then
+              manifest_file="$(dirname "$gradle_file")/src/main/AndroidManifest.xml"
+              pkg=""
+              if [ -f "$manifest_file" ]; then
+                pkg=$(grep -o 'package="[^"]*"' "$manifest_file" | head -1 | cut -d '"' -f 2)
+              fi
+              if [ -z "$pkg" ]; then
+                plugin_name=$(basename "$(dirname "$(dirname "$gradle_file")")" | cut -d '-' -f 1 | tr '-' '_')
+                pkg="com.exambrowser.plugins.${plugin_name}"
+              fi
+              echo "Patching: $gradle_file with namespace '$pkg'"
+              sed -i "s/android[[:space:]]*{/android {\n    namespace '$pkg'/g" "$gradle_file"
+              if [ -f "$manifest_file" ]; then
+                echo "Removing package attribute from: $manifest_file"
+                sed -i 's/package="[^"]*"//g' "$manifest_file"
+              fi
+            fi
+          done
+
+          # Specific targeted patch for kiosk_mode
+          for kfile in $(find $HOME/.pub-cache -path "*/kiosk_mode*/*/build.gradle" 2>/dev/null); do
+            echo "Checking kiosk_mode: $kfile"
+            if ! grep -q "namespace" "$kfile"; then
+              sed -i "s/android[[:space:]]*{/android {\n    namespace 'com.mews.kiosk_mode'/g" "$kfile"
+              echo "Explicitly added namespace to $kfile"
+            fi
+            kmanifest="$(dirname "$kfile")/src/main/AndroidManifest.xml"
+            if [ -f "$kmanifest" ]; then
+              sed -i 's/package="[^"]*"//g' "$kmanifest"
+            fi
+          done
+          echo "=== Patching complete ==="
 
       - name: Generate Launcher Icons
         run: dart run flutter_launcher_icons
