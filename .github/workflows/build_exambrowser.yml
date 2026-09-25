@@ -76,13 +76,12 @@ jobs:
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
 
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
           channel: 'stable'
           cache: true
 
@@ -133,77 +132,295 @@ jobs:
           sed -i 's|String currentUrl = ".*";|String currentUrl = "${{ inputs.cbt_url }}";|g' lib/main.dart
           sed -i 's|currentUrl = "https://sites.google.com/guru.smp.belajar.id/asesmenpasmer/home";|currentUrl = "${{ inputs.cbt_url }}";|g' lib/main.dart
 
-      - name: Initialize Android Platform
-        run: |
-          if [ ! -d "android" ]; then
-            flutter create . --org com.exambrowser.cbt --project-name exam_browser --platforms=android
-            if [ -f "AndroidManifest_Strict.xml" ]; then
-              cp AndroidManifest_Strict.xml android/app/src/main/AndroidManifest.xml
-            fi
-          fi
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
-          sed -i 's/minSdk = .*/minSdk = 21/g' android/app/build.gradle || true
-          sed -i 's|android:label=".*"|android:label="${{ inputs.app_name }}"|g' android/app/src/main/AndroidManifest.xml || true
-          cat << 'EOF' >> android/build.gradle
+      - name: Download Dependencies
+        run: flutter pub get
 
-          subprojects {
-              project.plugins.whenPluginAdded { plugin ->
-                  if (plugin.class.name.contains("com.android.build.gradle")) {
-                      project.android {
-                          if (namespace == null) {
-                              namespace = "com.exambrowser.plugins.${project.name.replaceAll('[^a-zA-Z0-9_]', '_')}"
+      - name: Initialize Android Folder
+        run: flutter create . --platforms android --org com.xcoding
+
+      - name: Generate App Icons
+        run: |
+          ls -l assets/logo.png
+          dart run flutter_launcher_icons
+
+      - name: Configure Android Native
+        run: |
+          PKG_NAME="com.xcoding.exam_browser"
+          PKG_PATH="android/app/src/main/kotlin/com/xcoding/exam_browser"
+          mkdir -p $PKG_PATH
+
+          cat << 'EOF' > $PKG_PATH/MainActivity.kt
+          package com.xcoding.exam_browser
+          import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+          import io.flutter.plugin.common.MethodChannel
+          import android.os.Bundle
+          import android.view.WindowManager
+          import android.view.KeyEvent
+          import android.provider.Settings
+          import android.os.Build
+          import android.os.Vibrator
+          import android.os.VibratorManager
+          import android.os.VibrationEffect
+          import android.media.AudioManager
+          import android.media.AudioDeviceInfo
+          import android.media.AudioAttributes
+          import android.media.MediaPlayer
+          import android.media.RingtoneManager
+          import android.content.Context
+          import android.app.admin.DeviceAdminReceiver
+
+          class AdminReceiver : DeviceAdminReceiver()
+
+          class MainActivity: FlutterActivity() {
+              private val CHANNEL = "com.xcoding.exam_browser/security"
+              private var mediaPlayer: MediaPlayer? = null
+              private var vibrator: Vibrator? = null
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                  window.decorView.setFilterTouchesWhenObscured(true)
+              }
+
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+                      when (call.method) {
+                          "checkSecurity" -> {
+                              val map = HashMap<String, Boolean>()
+                              map["isDevOptionsEnabled"] = isDevOptionsEnabled()
+                              map["isEmulator"] = isEmulator()
+                              map["isHeadsetConnected"] = isHeadsetConnected()
+                              result.success(map)
+                          }
+                          "setVolume" -> {
+                              try {
+                                  val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                  val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                  val targetVolume = (maxVolume * 0.4).toInt()
+                                  audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+                                  result.success(true)
+                              } catch (e: Exception) {
+                                  result.success(false)
+                              }
+                          }
+                          "playAlarm" -> {
+                              playEmergencyAlarm()
+                              result.success(true)
+                          }
+                          "stopAlarm" -> {
+                              stopEmergencyAlarm()
+                              result.success(true)
+                          }
+                          else -> {
+                              result.notImplemented()
                           }
                       }
                   }
               }
+
+              private fun playEmergencyAlarm() {
+                  try {
+                      val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                      val maxAlarmVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                      val maxMusicVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                      audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarmVol, 0)
+                      audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxMusicVol, 0)
+
+                      if (vibrator == null) {
+                          vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                              val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                              vibratorManager.defaultVibrator
+                          } else {
+                              @Suppress("DEPRECATION")
+                              getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                          }
+                      }
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500), 0))
+                      } else {
+                          @Suppress("DEPRECATION")
+                          vibrator?.vibrate(longArrayOf(0, 500, 200, 500), 0)
+                      }
+
+                      if (mediaPlayer == null) {
+                          mediaPlayer = MediaPlayer()
+                          try {
+                              val fd = assets.openFd("flutter_assets/assets/alert.mp3")
+                              mediaPlayer?.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
+                          } catch (e: Exception) {
+                              val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                                  ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                              mediaPlayer?.setDataSource(this, alarmUri)
+                          }
+                          
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                              mediaPlayer?.setAudioAttributes(
+                                  AudioAttributes.Builder()
+                                      .setUsage(AudioAttributes.USAGE_ALARM)
+                                      .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                      .build()
+                              )
+                          } else {
+                              @Suppress("DEPRECATION")
+                              mediaPlayer?.setAudioStreamType(AudioManager.STREAM_ALARM)
+                          }
+                          mediaPlayer?.isLooping = true
+                          mediaPlayer?.prepare()
+                      }
+                      if (mediaPlayer?.isPlaying == false) {
+                          mediaPlayer?.start()
+                      }
+                  } catch (e: Exception) {
+                      e.printStackTrace()
+                  }
+              }
+
+              private fun stopEmergencyAlarm() {
+                  try {
+                      vibrator?.cancel()
+                      mediaPlayer?.let {
+                          if (it.isPlaying) {
+                              it.stop()
+                          }
+                          it.release()
+                      }
+                      mediaPlayer = null
+                  } catch (e: Exception) {
+                      e.printStackTrace()
+                  }
+              }
+
+              override fun onDestroy() {
+                  stopEmergencyAlarm()
+                  super.onDestroy()
+              }
+
+              override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
+                  if (event?.keyCode == KeyEvent.KEYCODE_VOLUME_UP || 
+                      event?.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                      event?.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
+                      return true
+                  }
+                  return super.dispatchKeyEvent(event)
+              }
+
+              private fun isDevOptionsEnabled(): Boolean {
+                  val devOptions = Settings.Global.getInt(contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0
+                  val adbEnabled = Settings.Global.getInt(contentResolver, Settings.Global.ADB_ENABLED, 0) != 0
+                  return devOptions || adbEnabled
+              }
+
+              private fun isEmulator(): Boolean {
+                  return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                          || Build.FINGERPRINT.startsWith("generic")
+                          || Build.FINGERPRINT.startsWith("unknown")
+                          || Build.HARDWARE.contains("goldfish")
+                          || Build.HARDWARE.contains("ranchu")
+                          || Build.MODEL.contains("google_sdk")
+                          || Build.MODEL.contains("Emulator")
+                          || Build.MODEL.contains("Android SDK built for x86")
+                          || Build.MANUFACTURER.contains("Genymotion")
+                          || Build.PRODUCT.contains("sdk_google")
+                          || Build.PRODUCT.contains("google_sdk")
+                          || Build.PRODUCT.contains("sdk")
+                          || Build.PRODUCT.contains("sdk_x86")
+                          || Build.PRODUCT.contains("vbox86p")
+                          || Build.PRODUCT.contains("emulator")
+                          || Build.PRODUCT.contains("simulator")
+              }
+
+              private fun isHeadsetConnected(): Boolean {
+                  val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                      for (device in devices) {
+                          val type = device.type
+                          if (type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                              type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                              type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                              type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                              type == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                              return true
+                          }
+                      }
+                  } else {
+                      @Suppress("DEPRECATION")
+                      return audioManager.isWiredHeadsetOn || audioManager.isBluetoothA2dpOn
+                  }
+                  return false
+              }
           }
           EOF
 
-      - name: Get Flutter Packages
-        run: flutter pub get
+          cp AndroidManifest_Strict.xml android/app/src/main/AndroidManifest.xml
+          sed -i 's|android:label=".*"|android:label="${{ inputs.app_name }}"|g' android/app/src/main/AndroidManifest.xml || true
 
-      - name: Fix Plugin Namespaces and Manifests (AGP 8.0+)
+          mkdir -p android/app/src/main/res/xml
+          cat << 'EOF' > android/app/src/main/res/xml/device_admin.xml
+          <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-policies>
+                  <limit-password />
+                  <watch-login />
+                  <reset-password />
+                  <force-lock />
+                  <wipe-data />
+                  <expire-password />
+                  <encrypted-storage />
+                  <disable-camera />
+                  <disable-keyguard-features />
+              </uses-policies>
+          </device-admin>
+          EOF
+
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/minSdk = .*/minSdk = 21/' android/app/build.gradle.kts
+            sed -i 's/compileSdk = .*/compileSdk = 36/' android/app/build.gradle.kts
+            sed -i 's/targetSdk = .*/targetSdk = 36/' android/app/build.gradle.kts
+          fi
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+            sed -i 's/minSdkVersion [0-9]\+/minSdkVersion 21/g' android/app/build.gradle
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 36/g' android/app/build.gradle
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 36/g' android/app/build.gradle
+          fi
+
+          echo "kotlin.jvm.target.validation.mode=ignore" >> android/gradle.properties
+
+      - name: Universal Plugin Patch (Namespace, SDK & Proguard Fix)
         run: |
-          echo "=== Patching Flutter plugins in Pub Cache for AGP 8.0+ ==="
-          find $HOME/.pub-cache -name "build.gradle" 2>/dev/null | while read -r gradle_file; do
-            if grep -q "android[[:space:]]*{" "$gradle_file" && ! grep -q "namespace" "$gradle_file"; then
-              manifest_file="$(dirname "$gradle_file")/src/main/AndroidManifest.xml"
-              pkg=""
-              if [ -f "$manifest_file" ]; then
-                pkg=$(grep -o 'package="[^"]*"' "$manifest_file" | head -1 | cut -d '"' -f 2)
+          find /home/runner/.pub-cache/hosted/pub.dev -name "build.gradle" -o -name "build.gradle.kts" | while read -r file; do
+            if [[ "$file" == *.gradle ]] && ! grep -q "namespace" "$file"; then
+              PARENT_DIR=$(dirname "$file")
+              PUBSPEC_PATH="$(dirname "$PARENT_DIR")/pubspec.yaml"
+              PACKAGE_NAME=""
+              if [ -f "$PUBSPEC_PATH" ]; then
+                PACKAGE_NAME=$(grep -oP 'package:\s*\K[a-zA-Z0-9_.]+' "$PUBSPEC_PATH" | head -1)
               fi
-              if [ -z "$pkg" ]; then
-                plugin_name=$(basename "$(dirname "$(dirname "$gradle_file")")" | cut -d '-' -f 1 | tr '-' '_')
-                pkg="com.exambrowser.plugins.${plugin_name}"
+              if [ -z "$PACKAGE_NAME" ]; then
+                MANIFEST_PATH="$PARENT_DIR/src/main/AndroidManifest.xml"
+                if [ -f "$MANIFEST_PATH" ]; then
+                  PACKAGE_NAME=$(grep -oP 'package="\K[^"]+' "$MANIFEST_PATH" | head -1)
+                fi
               fi
-              echo "Patching: $gradle_file with namespace '$pkg'"
-              sed -i "s/android[[:space:]]*{/android {\n    namespace '$pkg'/g" "$gradle_file"
-              if [ -f "$manifest_file" ]; then
-                echo "Removing package attribute from: $manifest_file"
-                sed -i 's/package="[^"]*"//g' "$manifest_file"
+              if [ -n "$PACKAGE_NAME" ]; then
+                echo "Patching namespace for $PACKAGE_NAME in $file"
+                sed -i "s/android {/android {\n    namespace \"$PACKAGE_NAME\"/" "$file"
               fi
             fi
+
+            sed -i -E 's/.*compileSdkVersion.*/    compileSdk = 36/g' "$file"
+            sed -i -E 's/.*targetSdkVersion.*/    targetSdk = 36/g' "$file"
+            sed -i -E 's/.*compileSdk[[:space:]:=()]+.*/    compileSdk = 36/g' "$file"
+            sed -i -E 's/.*targetSdk[[:space:]:=()]+.*/    targetSdk = 36/g' "$file"
           done
 
-          # Specific targeted patch for kiosk_mode
-          for kfile in $(find $HOME/.pub-cache -path "*/kiosk_mode*/*/build.gradle" 2>/dev/null); do
-            echo "Checking kiosk_mode: $kfile"
-            if ! grep -q "namespace" "$kfile"; then
-              sed -i "s/android[[:space:]]*{/android {\n    namespace 'com.mews.kiosk_mode'/g" "$kfile"
-              echo "Explicitly added namespace to $kfile"
-            fi
-            kmanifest="$(dirname "$kfile")/src/main/AndroidManifest.xml"
-            if [ -f "$kmanifest" ]; then
-              sed -i 's/package="[^"]*"//g' "$kmanifest"
-            fi
-          done
-          echo "=== Patching complete ==="
-
-      - name: Generate Launcher Icons
-        run: dart run flutter_launcher_icons
+          echo "Patching Proguard references in pub-cache plugins..."
+          find /home/runner/.pub-cache/hosted/pub.dev \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/proguard-android.txt/proguard-android-optimize.txt/g' {} +
 
       - name: Build Android APK (Split per ABI)
-        run: flutter build apk --split-per-abi --release
+        run: flutter build apk --release --split-per-abi
 
       - name: Prepare Artifacts
         run: |
