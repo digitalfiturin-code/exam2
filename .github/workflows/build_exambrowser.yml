@@ -113,18 +113,18 @@ jobs:
           sed -i 's|android:label=".*"|android:label="${{ inputs.app_name }}"|g' android/app/src/main/AndroidManifest.xml || true
           cat << 'EOF' >> android/build.gradle
 
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (namespace == null) {
-                    namespace = project.group.toString()
-                }
-            }
-        }
-    }
-}
-EOF
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          if (namespace == null) {
+                              namespace = project.group.toString()
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: Get Flutter Packages
         run: flutter pub get
