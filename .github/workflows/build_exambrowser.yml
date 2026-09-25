@@ -44,12 +44,20 @@ on:
         description: 'Target Platform Output (APK, EXE, ALL)'
         required: true
         default: 'APK'
+      logo_blob_sha:
+        description: 'Git Blob SHA for Custom Logo PNG'
+        required: false
+        default: ''
+      custom_audio_blob_sha:
+        description: 'Git Blob SHA for Custom Alert Audio MP3'
+        required: false
+        default: ''
       logo_base64:
-        description: 'Base64 Encoded Logo PNG'
+        description: 'Base64 Encoded Logo PNG (Legacy)'
         required: false
         default: ''
       custom_audio_base64:
-        description: 'Base64 Encoded Custom Alert Audio MP3'
+        description: 'Base64 Encoded Custom Alert Audio MP3 (Legacy)'
         required: false
         default: ''
 
@@ -78,17 +86,41 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Decode Custom Logo
-        if: inputs.logo_base64 != ''
+      - name: Fetch Custom Logo
+        if: inputs.logo_blob_sha != '' || inputs.logo_base64 != ''
         run: |
           mkdir -p assets
-          echo "${{ inputs.logo_base64 }}" | base64 --decode > assets/logo.png
+          if [ -n "${{ inputs.logo_blob_sha }}" ]; then
+            echo "Downloading custom logo from GitHub Git Blob SHA: ${{ inputs.logo_blob_sha }}..."
+            curl -s -f -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.raw" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${{ github.repository }}/git/blobs/${{ inputs.logo_blob_sha }}" \
+              -o assets/logo.png
+          elif [ -n "${{ inputs.logo_base64 }}" ]; then
+            echo "Decoding legacy Base64 logo..."
+            echo "${{ inputs.logo_base64 }}" | base64 --decode > assets/logo.png
+          fi
+          ls -lh assets/logo.png
 
-      - name: Decode Custom Audio Alert
-        if: inputs.custom_audio_base64 != ''
+      - name: Fetch Custom Audio Alert
+        if: inputs.custom_audio_blob_sha != '' || inputs.custom_audio_base64 != ''
         run: |
           mkdir -p assets
-          echo "${{ inputs.custom_audio_base64 }}" | base64 --decode > assets/alert.mp3
+          if [ -n "${{ inputs.custom_audio_blob_sha }}" ]; then
+            echo "Downloading custom audio alert from GitHub Git Blob SHA: ${{ inputs.custom_audio_blob_sha }}..."
+            curl -s -f -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.raw" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${{ github.repository }}/git/blobs/${{ inputs.custom_audio_blob_sha }}" \
+              -o assets/alert.mp3
+          elif [ -n "${{ inputs.custom_audio_base64 }}" ]; then
+            echo "Decoding legacy Base64 audio..."
+            echo "${{ inputs.custom_audio_base64 }}" | base64 --decode > assets/alert.mp3
+          fi
+          ls -lh assets/alert.mp3
 
       - name: Inject Parameters to lib/main.dart
         run: |
@@ -205,19 +237,43 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Decode Custom Logo
-        if: inputs.logo_base64 != ''
+      - name: Fetch Custom Logo (Windows)
+        if: inputs.logo_blob_sha != '' || inputs.logo_base64 != ''
         shell: powershell
         run: |
           if (!(Test-Path "assets")) { New-Item -ItemType Directory -Path "assets" }
-          [System.Convert]::FromBase64String("${{ inputs.logo_base64 }}") | Set-Content -Path "assets/logo.png" -Encoding Byte
+          if ("${{ inputs.logo_blob_sha }}") {
+            Write-Host "Downloading custom logo from GitHub Git Blob SHA: ${{ inputs.logo_blob_sha }}"
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+              "Accept" = "application/vnd.github.raw"
+              "X-GitHub-Api-Version" = "2022-11-28"
+              "User-Agent" = "GitHub-Runner"
+            }
+            Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/git/blobs/${{ inputs.logo_blob_sha }}" -Headers $headers -OutFile "assets/logo.png"
+          } elseif ("${{ inputs.logo_base64 }}") {
+            [System.Convert]::FromBase64String("${{ inputs.logo_base64 }}") | Set-Content -Path "assets/logo.png" -Encoding Byte
+          }
+          Get-Item "assets/logo.png"
 
-      - name: Decode Custom Audio Alert (Windows)
-        if: inputs.custom_audio_base64 != ''
+      - name: Fetch Custom Audio Alert (Windows)
+        if: inputs.custom_audio_blob_sha != '' || inputs.custom_audio_base64 != ''
         shell: powershell
         run: |
           if (!(Test-Path "assets")) { New-Item -ItemType Directory -Path "assets" }
-          [System.Convert]::FromBase64String("${{ inputs.custom_audio_base64 }}") | Set-Content -Path "assets/alert.mp3" -Encoding Byte
+          if ("${{ inputs.custom_audio_blob_sha }}") {
+            Write-Host "Downloading custom audio from GitHub Git Blob SHA: ${{ inputs.custom_audio_blob_sha }}"
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+              "Accept" = "application/vnd.github.raw"
+              "X-GitHub-Api-Version" = "2022-11-28"
+              "User-Agent" = "GitHub-Runner"
+            }
+            Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/git/blobs/${{ inputs.custom_audio_blob_sha }}" -Headers $headers -OutFile "assets/alert.mp3"
+          } elseif ("${{ inputs.custom_audio_base64 }}") {
+            [System.Convert]::FromBase64String("${{ inputs.custom_audio_base64 }}") | Set-Content -Path "assets/alert.mp3" -Encoding Byte
+          }
+          Get-Item "assets/alert.mp3"
 
       - name: Inject Parameters to lib/main.dart (Windows)
         shell: powershell
