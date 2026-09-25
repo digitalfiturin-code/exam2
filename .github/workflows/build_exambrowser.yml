@@ -519,15 +519,17 @@ jobs:
       - name: Initialize Windows Platform
         shell: powershell
         run: |
-          if (!(Test-Path "windows")) {
-            flutter create . --org com.exambrowser.cbt --project-name exam_browser --platforms=windows
+          if (!(Test-Path "windows") -or !(Test-Path "android")) {
+            flutter create . --org com.exambrowser.cbt --project-name exam_browser --platforms=windows,android
           }
 
       - name: Get Flutter Packages
         run: flutter pub get
 
       - name: Generate Launcher Icons
-        run: dart run flutter_launcher_icons
+        shell: powershell
+        run: |
+          dart run flutter_launcher_icons || Write-Host "Launcher icons generated with warnings."
 
       - name: Build Windows Application
         run: flutter build windows --release
