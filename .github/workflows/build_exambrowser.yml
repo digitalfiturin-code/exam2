@@ -529,7 +529,11 @@ jobs:
       - name: Generate Launcher Icons
         shell: powershell
         run: |
-          dart run flutter_launcher_icons || Write-Host "Launcher icons generated with warnings."
+          try {
+            dart run flutter_launcher_icons
+          } catch {
+            Write-Host "Launcher icons warning: $_"
+          }
 
       - name: Build Windows Application
         run: flutter build windows --release
