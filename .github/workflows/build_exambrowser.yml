@@ -449,7 +449,7 @@ jobs:
   build-windows-exe:
     name: 'Build Windows (.EXE) - ${{ inputs.school_name }}'
     if: inputs.target_platform == 'EXE' || inputs.target_platform == 'ALL'
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
