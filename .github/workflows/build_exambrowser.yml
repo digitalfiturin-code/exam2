@@ -535,8 +535,13 @@ jobs:
             Write-Host "Launcher icons warning: $_"
           }
 
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Build Windows Application
-        run: flutter build windows --release
+        shell: powershell
+        run: |
+          flutter build windows --release
 
       - name: Compress Windows Output to ZIP
         shell: powershell
