@@ -73,6 +73,19 @@ jobs:
     if: inputs.target_platform == 'APK' || inputs.target_platform == 'ALL'
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY/CodeQL"
+          sudo docker system prune -af || true
+          echo "=== Disk space after cleanup ==="
+          df -h
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
