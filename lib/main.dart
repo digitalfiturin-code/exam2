@@ -859,7 +859,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                       },
                       onReceivedHttpError: (controller, request, errorResponse) {
                         debugPrint("onReceivedHttpError: ${errorResponse.statusCode} ${errorResponse.reasonPhrase}");
-                        if (errorResponse.statusCode >= 400) {
+                        if ((errorResponse.statusCode ?? 0) >= 400) {
                           setState(() {
                             isError = true;
                             errorMsg = "HTTP ${errorResponse.statusCode}: ${errorResponse.reasonPhrase}";
