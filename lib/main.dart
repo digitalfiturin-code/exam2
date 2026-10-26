@@ -150,7 +150,12 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
     // Auto-fix URL format
     String formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = 'https://$formattedUrl';
+      final isLocalIp = RegExp(r'^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.0\.0\.1|localhost)').hasMatch(formattedUrl);
+      if (isLocalIp) {
+        formattedUrl = 'http://$formattedUrl';
+      } else {
+        formattedUrl = 'https://$formattedUrl';
+      }
     }
 
     try {
@@ -787,6 +792,9 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                         supportZoom: true, // Izinkan zoom secukupnya jika soal ujian memiliki gambar/tabel kecil
                         builtInZoomControls: false,
                         displayZoomControls: false,
+                        mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                        allowFileAccess: true,
+                        allowContentAccess: true,
                       ),
                       onWebViewCreated: (controller) async {
                         webViewController = controller;
@@ -825,6 +833,10 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                         debugPrint("Blocked non-web navigation: $uri");
                         return NavigationActionPolicy.CANCEL;
                       },
+                      onReceivedServerTrustAuthRequest: (controller, challenge) async {
+                        // Izinkan koneksi SSL self-signed untuk server lokal sekolah
+                        return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
+                      },
                       onLoadStart: (controller, url) {
                         debugPrint("Navigating to: $url");
                         setState(() {
@@ -839,10 +851,20 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                         });
                       },
                       onLoadError: (controller, url, code, message) {
+                        debugPrint("onLoadError: $code - $message for $url");
                         setState(() {
                           isError = true;
-                          errorMsg = "Gagal memuat halaman ujian.";
+                          errorMsg = "$message ($code)";
                         });
+                      },
+                      onReceivedHttpError: (controller, request, errorResponse) {
+                        debugPrint("onReceivedHttpError: ${errorResponse.statusCode} ${errorResponse.reasonPhrase}");
+                        if (errorResponse.statusCode >= 400) {
+                          setState(() {
+                            isError = true;
+                            errorMsg = "HTTP ${errorResponse.statusCode}: ${errorResponse.reasonPhrase}";
+                          });
+                        }
                       },
                       onLoadStop: (controller, url) {
                         // Simpan rasio layar awal untuk deteksi split screen
@@ -1022,6 +1044,15 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 textAlign: TextAlign.center,
               ),
             ),
+            if (errorMsg.isNotEmpty && errorMsg != "Gagal memuat halaman ujian.")
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Text(
+                  errorMsg,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             const SizedBox(height: 30),
             ElevatedButton(
               onPressed: () {

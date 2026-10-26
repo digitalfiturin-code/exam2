@@ -390,6 +390,18 @@ jobs:
           </device-admin>
           EOF
 
+          cat << 'EOF' > android/app/src/main/res/xml/network_security_config.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <base-config cleartextTrafficPermitted="true">
+                  <trust-anchors>
+                      <certificates src="system" />
+                      <certificates src="user" />
+                  </trust-anchors>
+              </base-config>
+          </network-security-config>
+          EOF
+
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/minSdk = .*/minSdk = 21/' android/app/build.gradle.kts
             sed -i 's/compileSdk = .*/compileSdk = 36/' android/app/build.gradle.kts
@@ -437,13 +449,13 @@ jobs:
 
       - name: Build Android APK (Universal & Split)
         run: |
-          echo "=== 1. Building Universal APK (All-in-One for all Android devices) ==="
-          flutter build apk --release
+          echo "=== 1. Building Universal APK (ARM Physical Devices, Optimized Size) ==="
+          flutter build apk --release --target-platform android-arm,android-arm64 --obfuscate --split-debug-info=build/symbols
           mkdir -p output_apk
           cp build/app/outputs/flutter-apk/app-release.apk output_apk/${{ inputs.build_code }}_Universal.apk
 
           echo "=== 2. Building Split APK per ABI ==="
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apk/${{ inputs.build_code }}_arm64.apk || true
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk output_apk/${{ inputs.build_code }}_armeabi.apk || true
 
