@@ -466,7 +466,7 @@ jobs:
         with:
           name: EXAMPRO-APK-${{ inputs.build_code }}
           path: output_apk/
-          retention-days: 30
+          retention-days: 1
 
   # ══════════════════════════════════════════════════════════════
   # JOB 2: WINDOWS EXE BUILD (WINDOWS RUNNER)
@@ -579,7 +579,7 @@ jobs:
         with:
           name: EXAMPRO-Windows-${{ inputs.build_code }}
           path: output_windows/
-          retention-days: 30
+          retention-days: 1
 
   # ══════════════════════════════════════════════════════════════
   # JOB 3: PUBLISH TO GITHUB RELEASES (DIRECT DOWNLOAD CDN)
