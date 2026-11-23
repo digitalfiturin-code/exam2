@@ -42,7 +42,7 @@ on:
       screen_brightness:
         description: 'Kecerahan Layar (0.10 - 1.00)'
         required: false
-        default: '0.4'
+        default: '0.35'
       target_platform:
         description: 'Target Platform Output (APK, EXE, ALL)'
         required: true
