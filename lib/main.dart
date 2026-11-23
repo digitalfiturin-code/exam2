@@ -13,9 +13,20 @@ import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+WebViewEnvironment? webViewEnvironment;
+bool isWebViewAvailable = true;
+String webViewErrorMessage = "";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Penangkal crash global agar aplikasi tidak menutup seketika
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint("Flutter Error Caught: ${details.exceptionAsString()}");
+  };
 
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     try {
@@ -30,15 +41,36 @@ void main() async {
       );
       
       windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.show();
-        await windowManager.focus();
-        await windowManager.setFullScreen(true);
-        await windowManager.setResizable(false);
-        await windowManager.setPreventClose(true);
-        await windowManager.setAlwaysOnTop(true);
+        try {
+          await windowManager.show();
+          await windowManager.focus();
+          await windowManager.setFullScreen(true);
+          await windowManager.setResizable(false);
+          await windowManager.setPreventClose(true);
+          await windowManager.setAlwaysOnTop(true);
+        } catch (e) {
+          debugPrint("WindowManager configure error: $e");
+        }
       });
     } catch (e) {
       debugPrint("WindowManager Initialization Error: $e");
+    }
+  }
+
+  // Khusus Windows: Inisialisasi WebView2 Environment secara aman
+  if (Platform.isWindows) {
+    try {
+      final availableVersion = await WebViewEnvironment.getAvailableVersion();
+      if (availableVersion == null || availableVersion.isEmpty) {
+        isWebViewAvailable = false;
+        webViewErrorMessage = "Microsoft Edge WebView2 Runtime belum terpasang di komputer ini.";
+      } else {
+        webViewEnvironment = await WebViewEnvironment.create();
+      }
+    } catch (e) {
+      debugPrint("WebViewEnvironment Error: $e");
+      isWebViewAvailable = false;
+      webViewErrorMessage = "Gagal menginisialisasi engine browser: $e\nPastikan Microsoft Edge WebView2 Runtime terpasang.";
     }
   }
 
@@ -211,39 +243,46 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
 
   Future<void> _setupExamEnvironment() async {
     try {
-      await WakelockPlus.enable();
-      if (!Platform.isWindows) {
+      if (Platform.isAndroid || Platform.isIOS) {
+        await WakelockPlus.enable();
         await startKioskMode();
-      }
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      await InAppWebViewController.clearAllCache();
+        await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        await InAppWebViewController.clearAllCache();
 
-      if (enableAlertAudio) {
-        final session = await audio_session.AudioSession.instance;
-        await session.configure(const audio_session.AudioSessionConfiguration(
-          avAudioSessionCategory: audio_session.AVAudioSessionCategory.playback,
-          avAudioSessionCategoryOptions: audio_session.AVAudioSessionCategoryOptions.defaultToSpeaker,
-          androidAudioAttributes: audio_session.AndroidAudioAttributes(
-            usage: audio_session.AndroidAudioUsage.alarm,
-            contentType: audio_session.AndroidAudioContentType.sonification,
-          ),
-        ));
-      }
+        if (enableAlertAudio) {
+          final session = await audio_session.AudioSession.instance;
+          await session.configure(const audio_session.AudioSessionConfiguration(
+            avAudioSessionCategory: audio_session.AVAudioSessionCategory.playback,
+            avAudioSessionCategoryOptions: audio_session.AVAudioSessionCategoryOptions.defaultToSpeaker,
+            androidAudioAttributes: audio_session.AndroidAudioAttributes(
+              usage: audio_session.AndroidAudioUsage.alarm,
+              contentType: audio_session.AndroidAudioContentType.sonification,
+            ),
+          ));
+        }
 
-      // === Kecerahan Otomatis ===
-      try {
-        await ScreenBrightness.instance.setScreenBrightness(autoScreenBrightness);
-      } catch (e) {
-        debugPrint("Brightness control error: $e");
-      }
-
-      // === Kunci Volume di 40% & Nonaktifkan Tombol Volume (Android) ===
-      if (Platform.isAndroid) {
+        // === Kecerahan Otomatis ===
         try {
-          const platform = MethodChannel('com.xcoding.exam_browser/security');
-          await platform.invokeMethod('setVolume');
+          await ScreenBrightness.instance.setScreenBrightness(autoScreenBrightness);
         } catch (e) {
-          debugPrint("Volume lock error: $e");
+          debugPrint("Brightness control error: $e");
+        }
+
+        // === Kunci Volume di 40% & Nonaktifkan Tombol Volume (Android) ===
+        if (Platform.isAndroid) {
+          try {
+            const platform = MethodChannel('com.xcoding.exam_browser/security');
+            await platform.invokeMethod('setVolume');
+          } catch (e) {
+            debugPrint("Volume lock error: $e");
+          }
+        }
+      } else {
+        // Windows Desktop
+        try {
+          await WakelockPlus.enable();
+        } catch (e) {
+          debugPrint("Wakelock error Windows: $e");
         }
       }
     } catch (e) {
@@ -650,6 +689,10 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
     final double rawTopPadding = MediaQuery.viewPaddingOf(context).top;
     final double topPadding = isMobile ? (rawTopPadding > 24.0 ? rawTopPadding : 24.0) : 0.0;
 
+    if (Platform.isWindows && (!isWebViewAvailable || webViewEnvironment == null)) {
+      return _buildWebView2MissingScreen();
+    }
+
     if (isLoading && !isUrlSet) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -770,6 +813,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 child: Stack(
                   children: [
                     InAppWebView(
+                      webViewEnvironment: webViewEnvironment,
                       initialUrlRequest: URLRequest(
                         url: WebUri(currentUrl),
                         headers: {
@@ -1237,5 +1281,106 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
     ],
   ),
 );
+  }
+
+  Widget _buildWebView2MissingScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F172A),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(32),
+          margin: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 30,
+                spreadRadius: 8,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 56,
+                  color: Colors.amber,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Komponen Browser Diperlukan",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                webViewErrorMessage.isNotEmpty
+                    ? webViewErrorMessage
+                    : "Aplikasi ExamBrowser membutuhkan 'Microsoft Edge WebView2 Runtime' agar dapat menampilkan halaman ujian di Windows.",
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse("https://go.microsoft.com/fwlink/p/?LinkId=2124703");
+                    try {
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    } catch (e) {
+                      debugPrint("Launch url error: $e");
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                  label: const Text(
+                    "Unduh WebView2 Runtime (Microsoft)",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => exit(0),
+                child: const Text(
+                  "Tutup Aplikasi",
+                  style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
