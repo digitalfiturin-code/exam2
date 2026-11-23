@@ -34,7 +34,7 @@ void main() async {
       WindowOptions windowOptions = const WindowOptions(
         fullScreen: true,
         center: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFFF8FAFC),
         skipTaskbar: false, // Set false agar terlihat saat proses loading
         titleBarStyle: TitleBarStyle.hidden,
         alwaysOnTop: true,
@@ -74,8 +74,17 @@ void main() async {
     }
   }
 
-  runApp(const MaterialApp(
-    home: ExamBrowserFinal(),
+  runApp(MaterialApp(
+    theme: ThemeData(
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF0F172A),
+        elevation: 0,
+      ),
+      useMaterial3: false,
+    ),
+    home: const ExamBrowserFinal(),
     debugShowCheckedModeBanner: false,
   ));
 }
@@ -551,7 +560,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: Colors.black.withOpacity(0.05)),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)
+              BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 25, spreadRadius: 4)
             ],
           ),
           child: Column(
@@ -640,8 +649,8 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isReset ? Colors.amber : Colors.indigoAccent,
-                              foregroundColor: Colors.black,
+                              backgroundColor: isReset ? Colors.amber : const Color(0xFF4F46E5),
+                              foregroundColor: isReset ? Colors.black : Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                             ),
@@ -694,7 +703,10 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
     }
 
     if (isLoading && !isUrlSet) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAFC),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+      );
     }
 
     if (!isUrlSet) return _buildSetupScreen(topPadding);
@@ -706,7 +718,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
         // Tombol back dimatikan total agar siswa tidak terganggu
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFFF8FAFC),
         body: isSecurityViolation
             ? SafeArea(child: _buildSecurityViolationOverlay())
             : SafeArea(
@@ -715,7 +727,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 left: isMobile,
                 child: Column(
                   children: [
-                    // Top Bar Navigation
+                    // Top Bar Navigation (Clean Off-White)
                     Container(
                       padding: EdgeInsets.only(
                         top: topPadding > 0 ? topPadding : 8,
@@ -723,9 +735,9 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                         left: 16,
                         right: 8, // Sedikit dikurangi agar lebih menempel
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1B4B),
-                        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -737,13 +749,13 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                                 GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onLongPress: () => _showExitDialog(),
-                                  child: Image.asset('assets/logo.png', height: 24, errorBuilder: (_,__,___) => const Icon(Icons.school, color: Colors.white, size: 20)),
+                                  child: Image.asset('assets/logo.png', height: 24, errorBuilder: (_,__,___) => const Icon(Icons.school, color: Color(0xFF4F46E5), size: 20)),
                                 ),
                                 const SizedBox(width: 10),
                                 Flexible(
                                   child: Text(
                                     schoolName,
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5),
+                                    style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5),
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
                                   ),
@@ -763,14 +775,14 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                                   final now = DateTime.now();
                                   return Text(
                                     "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}",
-                                    style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'monospace'),
+                                    style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'monospace'),
                                   );
                                 },
                               ),
                               const SizedBox(width: 4),
                               // Tombol Kembali Web
                               IconButton(
-                                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70, size: 22),
+                                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF475569), size: 22),
                                 onPressed: () async {
                                   if (await webViewController?.canGoBack() ?? false) {
                                     await webViewController?.goBack();
@@ -782,13 +794,13 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                               ),
                               // Tombol Home Ujian
                               IconButton(
-                                icon: const Icon(Icons.home_rounded, color: Colors.white70, size: 22),
+                                icon: const Icon(Icons.home_rounded, color: Color(0xFF475569), size: 22),
                                 onPressed: () => _resetUrl(),
                                 tooltip: 'Menu Utama Ujian',
                               ),
                               // Refresh Button
                               IconButton(
-                                icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 22),
+                                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF475569), size: 22),
                                 onPressed: () => webViewController?.reload(),
                                 tooltip: 'Refresh Halaman',
                               ),
@@ -806,8 +818,8 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
               if (isLoading || progress < 1.0)
                 LinearProgressIndicator(
                   value: progress > 0 ? progress : null,
-                  backgroundColor: Colors.grey[900],
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.indigoAccent),
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
                 ),
               Expanded(
                 child: Stack(
@@ -928,14 +940,14 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
 
   Widget _buildSetupScreen(double topPadding) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+            colors: [Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
           ),
         ),
         child: SafeArea(
@@ -946,7 +958,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 top: 10 + topPadding,
                 right: 10,
                 child: IconButton(
-                  icon: const Icon(Icons.power_settings_new_rounded, color: Colors.white24, size: 28),
+                  icon: const Icon(Icons.power_settings_new_rounded, color: Colors.black38, size: 28),
                   onPressed: _showExitDialog,
                 ),
               ),
@@ -961,35 +973,43 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(35),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                               boxShadow: [
-                                BoxShadow(color: Colors.indigo.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)
+                                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 25, spreadRadius: 2)
                               ]
                             ),
-                            child: Image.asset('assets/logo.png', height: 100, errorBuilder: (_,__,___) => const Icon(Icons.school, size: 100, color: Colors.white)),
+                            child: Image.asset('assets/logo.png', height: 100, errorBuilder: (_,__,___) => const Icon(Icons.school, size: 100, color: Color(0xFF4F46E5))),
                           ),
-                          const SizedBox(height: 40),
-                          Text(schoolName, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                          const SizedBox(height: 30),
+                          Text(
+                            schoolName,
+                            style: const TextStyle(color: Color(0xFF0F172A), fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        decoration: BoxDecoration(color: Colors.indigoAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                        child: const Text("SMART EXAM SOLUTION", style: TextStyle(color: Colors.indigoAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                        decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(10)),
+                        child: const Text("SMART EXAM SOLUTION", style: TextStyle(color: Color(0xFF4F46E5), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
                       ),
-                      const SizedBox(height: 50),
+                      const SizedBox(height: 40),
                       Container(
                         padding: const EdgeInsets.all(25),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, spreadRadius: 2)
+                          ],
                         ),
                         child: Column(
                           children: [
-                            const Text("KONFIGURASI UJIAN", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                            const Text("KONFIGURASI UJIAN", style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                             const SizedBox(height: 25),
                             SizedBox(
                               width: double.infinity,
@@ -998,10 +1018,10 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                                 icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 24),
                                 label: const Text("SCAN QR CODE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.indigoAccent,
+                                  backgroundColor: const Color(0xFF4F46E5),
                                   padding: const EdgeInsets.symmetric(vertical: 20),
-                                  elevation: 10,
-                                  shadowColor: Colors.indigoAccent.withOpacity(0.5),
+                                  elevation: 4,
+                                  shadowColor: const Color(0xFF4F46E5).withOpacity(0.4),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                 ),
                               ),
@@ -1009,28 +1029,29 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                             const SizedBox(height: 25),
                             Row(
                               children: [
-                                Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
+                                const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                                 const Padding(
                                   padding: EdgeInsets.symmetric(horizontal: 15),
-                                  child: Text("ATAU", style: TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  child: Text("ATAU", style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold)),
                                 ),
-                                Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
+                                const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                               ],
                             ),
                             const SizedBox(height: 25),
                             TextField(
                               controller: _urlController,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
                               decoration: InputDecoration(
                                 hintText: "Ketik Link Ujian Manual...",
-                                hintStyle: const TextStyle(color: Colors.white24, fontWeight: FontWeight.normal),
+                                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.normal),
                                 filled: true,
-                                fillColor: Colors.black.withOpacity(0.3),
-                                prefixIcon: const Icon(Icons.link, color: Colors.white30),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Colors.indigoAccent, width: 2)),
+                                fillColor: const Color(0xFFF8FAFC),
+                                prefixIcon: const Icon(Icons.link, color: Color(0xFF64748B)),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2)),
                                 suffixIcon: IconButton(
-                                  icon: const Icon(Icons.send_rounded, color: Colors.indigoAccent),
+                                  icon: const Icon(Icons.send_rounded, color: Color(0xFF4F46E5)),
                                   onPressed: () => _saveAndOpenUrl(_urlController.text),
                                 ),
                               ),
@@ -1039,21 +1060,22 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                           ],
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 30),
                       Container(
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.03),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.bolt_rounded, color: Colors.amber, size: 18),
+                            Icon(Icons.bolt_rounded, color: Color(0xFFF59E0B), size: 18),
                             SizedBox(width: 10),
                             Text(
                               "Pastikan Internet & Baterai Stabil",
-                              style: TextStyle(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.w500),
+                              style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -1071,20 +1093,20 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
 
   Widget _buildErrorView() {
     return Container(
-      color: Colors.white,
+      color: const Color(0xFFF8FAFC),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 80, color: Colors.red),
+            const Icon(Icons.wifi_off_rounded, size: 80, color: Colors.redAccent),
             const SizedBox(height: 20),
-            const Text("Gagal Memuat Halaman", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text("Gagal Memuat Halaman", style: TextStyle(color: Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 "Periksa koneksi jaringan Anda atau server ujian Anda",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Color(0xFF64748B)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -1106,11 +1128,18 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 });
                 webViewController?.reload();
               },
-              child: const Text("Coba Lagi"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Coba Lagi", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
+            const SizedBox(height: 10),
             TextButton(
               onPressed: () => _showExitDialog(isReset: true),
-              child: const Text("Ganti Link", style: TextStyle(color: Colors.red)),
+              child: const Text("Ganti Link", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1122,7 +1151,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xFF0F172A),
+      color: const Color(0xFFF8FAFC),
       child: Stack(
         children: [
           // Tombol Keluar dengan PIN Guru di pojok kanan atas
@@ -1145,147 +1174,153 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: Colors.redAccent.withOpacity(0.08),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 2),
+                      border: Border.all(color: Colors.redAccent.withOpacity(0.2), width: 2),
                     ),
-                child: const Icon(
-                  Icons.gpp_bad_rounded,
-                  color: Colors.redAccent,
-                  size: 80,
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                "BLOKIR KEAMANAN",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  "TERDETEKSI TINDAKAN KECURANGAN",
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
+                    child: const Icon(
+                      Icons.gpp_bad_rounded,
+                      color: Colors.redAccent,
+                      size: 80,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Jenis Pelanggaran:",
-                      style: TextStyle(
-                        color: Colors.white30,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(height: 30),
+                  const Text(
+                    "BLOKIR KEAMANAN",
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      securityViolationReason,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      securityViolationReason.contains("Penyematan")
-                          ? "Ujian dikunci! Klik tombol di bawah dan izinkan penyematan layar untuk melanjutkan ujian."
-                          : "Harap lepaskan perangkat tambahan / matikan opsi pengembang untuk melanjutkan ujian!",
+                    child: const Text(
+                      "TERDETEKSI TINDAKAN KECURANGAN",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 12,
+                        color: Colors.redAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 40),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(25),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, spreadRadius: 2)
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Jenis Pelanggaran:",
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          securityViolationReason,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Color(0xFFF59E0B), size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          securityViolationReason.contains("Penyematan")
+                              ? "Ujian dikunci! Klik tombol di bawah dan izinkan penyematan layar untuk melanjutkan ujian."
+                              : "Harap lepaskan perangkat tambahan / matikan opsi pengembang untuk melanjutkan ujian!",
+                          style: const TextStyle(
+                            color: Color(0xFF475569),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  if (securityViolationReason.contains("Penyematan"))
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        if (Platform.isAndroid) {
+                          await startKioskMode();
+                        }
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        await _runSecurityCheck();
+                      },
+                      icon: const Icon(Icons.push_pin_rounded, color: Colors.white, size: 22),
+                      label: const Text(
+                        "SEMATKAN APLIKASI SEKARANG",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      onPressed: () => _runSecurityCheck(),
+                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                      label: const Text(
+                        "PERIKSA ULANG KONDISI",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 30),
-              if (securityViolationReason.contains("Penyematan"))
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    if (Platform.isAndroid) {
-                      await startKioskMode();
-                    }
-                    await Future.delayed(const Duration(milliseconds: 500));
-                    await _runSecurityCheck();
-                  },
-                  icon: const Icon(Icons.push_pin_rounded, color: Colors.white, size: 22),
-                  label: const Text(
-                    "SEMATKAN APLIKASI SEKARANG",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigoAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                    elevation: 10,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                )
-              else
-                ElevatedButton.icon(
-                  onPressed: () => _runSecurityCheck(),
-                  icon: const Icon(Icons.refresh_rounded, color: Colors.black),
-                  label: const Text(
-                    "PERIKSA ULANG KONDISI",
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 
   Widget _buildWebView2MissingScreen() {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 500),
@@ -1294,11 +1329,12 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withOpacity(0.06),
                 blurRadius: 30,
-                spreadRadius: 8,
+                spreadRadius: 4,
               ),
             ],
           ),
@@ -1307,14 +1343,14 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.15),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF3C7),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.warning_amber_rounded,
                   size: 56,
-                  color: Colors.amber,
+                  color: Color(0xFFD97706),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1334,7 +1370,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                     : "Aplikasi ExamBrowser membutuhkan 'Microsoft Edge WebView2 Runtime' agar dapat menampilkan halaman ujian di Windows.",
                 style: const TextStyle(
                   fontSize: 13,
-                  color: Colors.black54,
+                  color: Color(0xFF475569),
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,
@@ -1362,7 +1398,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    elevation: 5,
+                    elevation: 4,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -1374,7 +1410,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
                 onPressed: () => exit(0),
                 child: const Text(
                   "Tutup Aplikasi",
-                  style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                 ),
               ),
             ],
