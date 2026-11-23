@@ -102,7 +102,7 @@ class _ExamBrowserFinalState extends State<ExamBrowserFinal> with WidgetsBinding
   final double alertAudioVolume = 0.8;
 
   // === PENGATURAN KECERAHAN LAYAR (0.1 - 1.0) ===
-  final double autoScreenBrightness = 0.4;
+  final double autoScreenBrightness = 0.35;
   
   final AudioPlayer audioPlayer = AudioPlayer();
   final TextEditingController _urlController = TextEditingController();
