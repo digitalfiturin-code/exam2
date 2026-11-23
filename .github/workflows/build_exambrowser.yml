@@ -466,7 +466,7 @@ jobs:
         with:
           name: EXAMPRO-APK-${{ inputs.build_code }}
           path: output_apk/
-          retention-days: 1
+          retention-days: 30
 
   # ══════════════════════════════════════════════════════════════
   # JOB 2: WINDOWS EXE BUILD (WINDOWS RUNNER)
@@ -568,6 +568,52 @@ jobs:
         run: |
           flutter build windows --release
 
+      - name: Add User Guide & Launcher
+        shell: powershell
+        run: |
+          $guidePath = "build\windows\x64\runner\Release\PETUNJUK_PENGGUNAAN_WINDOWS.txt"
+          @"
+==================================================================
+PETUNJUK PENGGUNAAN EXAMBROWSER CBT WINDOWS
+==================================================================
+
+PENTING SEBELUM MEMBUKA APLIKASI:
+1. EKSTRAK SEMUA FILE (EXTRACT ALL):
+   - Jangan menjalankan exam_browser.exe langsung dari dalam file ZIP.
+   - Klik kanan file ZIP -> Pilih "Extract All" (Ekstrak Semua).
+   - Pastikan file 'exam_browser.exe', file-file '*.dll', dan folder 'data'
+     berada dalam satu folder yang sama.
+
+2. CARA MEMBUKA APLIKASI:
+   - Klik ganda pada 'Jalankan_ExamBrowser.bat' atau 'exam_browser.exe'.
+
+3. MEMBUAT SHORTCUT DI DESKTOP:
+   - Jika ingin mempermudah siswa membuka aplikasi dari Desktop:
+     Klik kanan 'exam_browser.exe' -> Kirim ke (Send to) -> Desktop (create shortcut).
+   - JANGAN memindahkan file 'exam_browser.exe' sendirian ke Desktop tanpa foldernya.
+
+4. KEBUTUHAN SISTEM:
+   - Aplikasi ini membutuhkan 'Microsoft Edge WebView2 Runtime'.
+   - Pada Windows 11 dan Windows 10 versi terbaru, komponen ini sudah terpasang otomatis.
+   - Jika aplikasi meminta WebView2 Runtime saat dibuka, unduh gratis melalui:
+     https://go.microsoft.com/fwlink/p/?LinkId=2124703
+
+==================================================================
+"@ | Set-Content -Path $guidePath -Encoding UTF8
+
+          $batPath = "build\windows\x64\runner\Release\Jalankan_ExamBrowser.bat"
+          @"
+@echo off
+title Membuka ExamBrowser CBT...
+cd /d "%~dp0"
+if exist "exam_browser.exe" (
+    start "" "exam_browser.exe"
+) else (
+    echo [ERROR] File exam_browser.exe tidak ditemukan di folder ini!
+    pause
+)
+"@ | Set-Content -Path $batPath -Encoding ASCII
+
       - name: Compress Windows Output to ZIP
         shell: powershell
         run: |
@@ -579,7 +625,7 @@ jobs:
         with:
           name: EXAMPRO-Windows-${{ inputs.build_code }}
           path: output_windows/
-          retention-days: 1
+          retention-days: 30
 
   # ══════════════════════════════════════════════════════════════
   # JOB 3: PUBLISH TO GITHUB RELEASES (DIRECT DOWNLOAD CDN)
